@@ -1,2 +1,2 @@
 # ChessGame
-Simple Chess Game Project in Scala
+Simple chess game project made for learning basics of Scala
