@@ -24,7 +24,18 @@ class Player(var color: Int) {
 
   def getAvailableMoves(figName: Int, pos: (Int, Int), board: Array[Array[Int]]): ListBuffer[(Int, Int)] = {
 
-    // TODO Write functions for every fig class for getting available positions
+    // Check fig positions for several cases:
+    //
+    // First: current positions is occupied by player's side, next by other side or empty
+    // Second: current position is empty and next is occupied by other side or empty
+    //
+    // If so, player can move forward, otherwise nex position is obstacle
+    val noObstacle = (currentPos: (Int, Int), nextPos: (Int, Int)) => {
+      val currentFig = board(currentPos._1)(currentPos._2)
+      val nextFig = board(nextPos._1)(nextPos._2)
+      (currentFig == 0 || Math.signum(currentFig) == color) && (nextFig == 0 || Math.signum(nextFig) == -color)
+
+    }
 
     def fKing(pos: (Int, Int)) = {
       val positions = new ListBuffer[(Int, Int)]()
@@ -36,7 +47,7 @@ class Player(var color: Int) {
       positions
     }
 
-    def fRook(pos: (Int, Int), board: Array[Array[Int]]) = {
+    def fRook(pos: (Int, Int)) = {
       val positions = new ListBuffer[(Int, Int)]()
 
       // Scan vertically to detect obstacles
@@ -45,38 +56,69 @@ class Player(var color: Int) {
         // towards 0 and towards 7
         Array(0, 7).foreach(endPoint => {
           val order = if (endPoint == 0) -1 else 1  // Use this val to be able iterate in ascending and descending orders
-          var row = pos._1 + order  // Don't scan start position
-          var noObstacle = true
+          var row = pos._1 // start position
+
           // Iterating over constant column
-          while (noObstacle && (row * order <= endPoint)) {
-            positions += Tuple2(row, pos._2)
-            noObstacle = (board(row)(pos._2) == 0)
+          // First check if we are still on board and then if no obstacles in the next position
+          while ((row * order < endPoint) && noObstacle((row, pos._2), (row + order, pos._2)) ) {
             row += order
-          }})}
+            positions += Tuple2(row, pos._2)
+          }})
+      }
 
       // Scan horizontally
       def scanOnCols() = {
         // Doing the same as scanOnRows but row is constant
         Array(0, 7).foreach(endPoint => {
           val order = if (endPoint == 0) -1 else 1
-          var col = pos._2 + order
-          var noObstacle = true
-          while (noObstacle && (col * order <= endPoint)) {
-            positions += Tuple2(pos._1, col)
-            noObstacle = (board(pos._1)(col) == 0)
+          var col = pos._2
+
+          while ((col * order < endPoint) && noObstacle((pos._1, col), (pos._1, col + order))) {
             col += order
-          }})}
+            positions += Tuple2(pos._1, col)
+          }})
+      }
 
       scanOnRows()
       scanOnCols()
       positions
     }
 
+    def fBishop(pos: (Int, Int)) = {
+      val positions = new ListBuffer[(Int, Int)]()
+
+      def scanDiag1() = {
+        Array(0, 7).foreach(endPoint => {
+          val order = if (endPoint == 0) -1 else 1
+          var row = pos._1
+          var col = pos._2
+
+          // First check if we are still on board and then if no obstacles in the next position
+          while ((row * order < endPoint) && (col * order < endPoint) && noObstacle((row, col), (row + order, col + order))) {
+            row += order
+            col += order
+            positions += Tuple2(row, col)
+          }})
+      }
+
+      def scanDiag2() = {
+        Array((0, 7), (7, 0)).foreach(endPoints =>{
+          val order = if (endPoints._1 == 0) -1 else 1
+          var row = pos._1
+          var col = pos._2
+
+          while ((row*order < endPoints._1) && (col*(-1)*order < endPoints._2) && noObstacle((row, col), (row + order, col - order))) {
+            row += order
+            col -= order
+            positions += Tuple2(row, col)
+          }})
+      }
+
+      scanDiag1()
+      scanDiag2()
+      positions
+    }
   }
-}
-
-
-
 }
 
 class Game {
@@ -145,7 +187,7 @@ class Game {
 
     val (pos, move) = getInputFromPlayer
     val chosenFigNum = board(pos._1)(pos._2)
-    val chosenFigName = player.figures(chosenFigNum)
+    val chosenFigName = player.figures(chosenFigNum)._1
 
 
     def checkIfMoveValid: Boolean = {
