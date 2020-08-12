@@ -3,7 +3,7 @@ import scala.collection.mutable.ListBuffer
 import scala.io.StdIn
 
 class Player(var color: Int) {
-  // 1 = white, -1 = black
+  // -1 = white, 1 = black
   require(color == -1 || color == 1)
 
   private val initialRowPos = if (color == -1) 0 else 7
@@ -18,7 +18,7 @@ class Player(var color: Int) {
     6 -> ("Knight", (initialRowPos, 6)),
     7 -> ("Bishop", (initialRowPos, 2)),
     8 -> ("Bishop", (initialRowPos, 5))
-  ) ++ (for (i <- 0 to 7) yield (i + 9, ("Pawn", (initialRowPos - color, i)))).toMap
+  ) ++ (for (i <- 0 to 7) yield (i + 9, ("Pawn", (initialRowPos + color, i)))).toMap
 
   val availableMoves: mutable.Map[Int, List[(Int, Int)]] = mutable.Map()
 
@@ -41,8 +41,9 @@ class Player(var color: Int) {
       val positions = new ListBuffer[(Int, Int)]()
       val rowBounds = Array(pos._1 - 1, pos._1 + 1)
       rowBounds.foreach(row => {
-        if (board(2)(row) == 0) positions += Tuple2(2, row)
-        for (col <- pos._2 - 1 to pos._2 + 1) if (board(row)(col) == 0) positions += Tuple2(row, col)
+        if (board(2)(row) == 0 || Math.signum(board(2)(row)) == -color) positions += Tuple2(2, row)
+        for (col <- pos._2 - 1 to pos._2 + 1) if (board(row)(col) == 0 || Math.signum(board(row)(col)) == -color)
+          positions += Tuple2(row, col)
       })
       positions
     }
@@ -118,6 +119,51 @@ class Player(var color: Int) {
       scanDiag2()
       positions
     }
+
+    def fQueen(pos: (Int, Int)) = {
+      // Queen moves just like Rook and Bishop together
+      val diagonalPositions = fBishop(pos)
+      val linesPositions = fRook(pos)
+
+      diagonalPositions :++ linesPositions
+    }
+
+    def fKnight(pos: (Int, Int)) = {
+      val positions = new ListBuffer[(Int, Int)]()
+      Array((1,1), (-1,-1), (1, -1), (-1,1)).foreach(signs => {
+        positions += Tuple2(pos._1 + 2*signs._1, pos._2 + 1*signs._2)
+        positions += Tuple2(pos._1 + 1*signs._1, pos._2 + 2*signs._2)
+      })
+
+      val checkIfOnBoard = (pos: (Int, Int)) => (0 to 7).contains(pos._1) && (0 to 7).contains(pos._2)
+      val checkIfObstacle = (pos: (Int, Int)) => Math.signum(board(pos._1)(pos._2)) != color
+
+      positions.filter(pos => checkIfOnBoard(pos) && checkIfObstacle(pos))
+    }
+
+    def fPawn(pos: (Int, Int)) = {
+      val movePositions = new ListBuffer[(Int, Int)]()
+      val nextRow = pos._1 + color
+
+      val checkIfOnBoard = (pos: (Int, Int)) => (0 to 7).contains(pos._1) && (0 to 7).contains(pos._2)
+      val checkIfEnemy = (pos: (Int, Int)) => Math.signum(board(pos._1)(pos._2)) == -color
+
+      // If haven't done any move is possible to move in 2 positions forward
+      if (pos._1 == initialRowPos + color) {
+        for (row <- Array(nextRow, nextRow + color)) {
+          if (board(row)(pos._2) == 0) movePositions += Tuple2(row, pos._2)
+        }
+      }
+      else if ((0 to 7).contains(nextRow) && board(nextRow)(pos._2) == 0) movePositions += Tuple2(nextRow, pos._2)
+
+      val attackPositions = ListBuffer((nextRow, pos._2 - 1), (nextRow, pos._2 + 1)).filter(move =>
+        checkIfOnBoard(move) && checkIfEnemy(move))
+
+      movePositions :++ attackPositions
+    }
+
+
+
   }
 }
 
@@ -230,7 +276,6 @@ class Game {
 
   def checkEnd(player: Player, board: Array[Array[Int]], lastMovedPos: (Int, Int)) = {
     def isCheck(pos: (Int, Int)): Boolean = {
-
     }
 
   }
