@@ -22,7 +22,7 @@ class Player(var color: Int) {
 
   val availableMoves: mutable.Map[Int, List[(Int, Int)]] = mutable.Map()
 
-  def getAvailableMoves(figName: Int, pos: (Int, Int), board: Array[Array[Int]]): mutable.Map[Int, ListBuffer[(Int, Int)]] = {
+  def getAvailableMoves(figNum: Int, board: Array[Array[Int]], forAll: Boolean = true) = {
 
     // Check fig positions for several cases:
     //
@@ -173,12 +173,15 @@ class Player(var color: Int) {
       "Pawn" -> fPawn
     )
 
-    (for (figure <- figures) yield {
-      val figNum = figure._1
-      val figName = figure._2._1
-      val figPos = figure._2._2
-      (figNum, applyFunction(figName)(figPos))
-    }).to(mutable.Map)
+    if (forAll) {
+      (for (figure <- figures) yield {
+        val figNum = figure._1
+        val figName = figure._2._1
+        val figPos = figure._2._2
+        (figNum, applyFunction(figName)(figPos))
+      }).to(mutable.Map)
+    }
+    else applyFunction(figures(figNum))
   }
 }
 
@@ -210,4 +213,5 @@ class Game {
     }
 
   }
+
 }
