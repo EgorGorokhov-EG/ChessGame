@@ -22,7 +22,7 @@ class Player(var color: Int) {
 
   val availableMoves: mutable.Map[Int, List[(Int, Int)]] = mutable.Map()
 
-  def getAvailableMoves(figName: Int, pos: (Int, Int), board: Array[Array[Int]]): ListBuffer[(Int, Int)] = {
+  def getAvailableMoves(figName: Int, pos: (Int, Int), board: Array[Array[Int]]): mutable.Map[Int, ListBuffer[(Int, Int)]] = {
 
     // Check fig positions for several cases:
     //
@@ -162,40 +162,27 @@ class Player(var color: Int) {
       movePositions :++ attackPositions
     }
 
+    type F = ((Int, Int)) => ListBuffer[(Int, Int)]
 
+    val applyFunction: Map[String, F] = Map(
+      "King" -> fKing,
+      "Queen" -> fQueen,
+      "Rook" -> fRook,
+      "Knight" -> fKnight,
+      "Bishop" -> fBishop,
+      "Pawn" -> fPawn
+    )
 
+    (for (figure <- figures) yield {
+      val figNum = figure._1
+      val figName = figure._2._1
+      val figPos = figure._2._2
+      (figNum, applyFunction(figName)(figPos))
+    }).to(mutable.Map)
   }
 }
 
 class Game {
-  // functions to check correctness of selected move for certain figure
-  val fKing = (pos: (Int, Int), move: (Int, Int)) => (move._1 - pos._1).abs <= 1 && (move._2 - pos._2).abs <= 1
-
-  val fQueen = (pos: (Int, Int), move: (Int, Int)) =>
-    (pos._1 == move._1 || pos._2 == move._2) || ((pos._1 - move._1).abs == (pos._2 - move._2).abs)
-
-  val fRook = (pos: (Int, Int), move: (Int, Int)) => pos._1 == move._1 || pos._2 == move._2
-
-  val fKnight = (pos: (Int, Int), move: (Int, Int)) =>
-    ((move._1 - pos._1).abs == 2 && (move._2 - pos._2) == 1) || ((move._2 - pos._2).abs == 2 && (move._1 - pos._1) == 1)
-
-  val fBishop = (pos: (Int, Int), move: (Int, Int)) => (pos._1 - move._1).abs == (pos._2 - move._2).abs
-
-  def fPawn(pos: (Int, Int), move: (Int, Int), color: Int): Boolean = {
-    if (color == -1) move._2 - pos._2 == 1 && (move._1 - pos._1).abs == 1
-    else move._2 - pos._2 == -1 && (move._1 - pos._1).abs == 1
-  }
-
-  type F = ((Int, Int), (Int, Int)) => Boolean
-
-  // Map containing functions to check if a chosen position is correct for selected figure
-  val checkMoves: Map[String, F] = Map(
-    "King" -> fKing,
-    "Queen" -> fQueen,
-    "Rook" -> fRook,
-    "Knight" -> fKnight,
-    "Bishop" -> fBishop
-  )
 
   // Board represented as a 2d array, white figs down, black up.
   // 1 = white, -1 = black
@@ -212,70 +199,14 @@ class Game {
     board
   }
 
-  def makeMove(player: Player, board: Array[Array[Int]]): (Int, Int) = {
-    // TODO Add possibility for player to select move from available moves for chosen figure
-
-    def getInputFromPlayer: ((Int, Int), (Int, Int)) = {
-      println("Enter coordinates(row, column) of figure to move: ")
-      val posArray = StdIn.readLine().split(" ")
-      val pos = (posArray(1).toInt, posArray(0).toInt)
-
-      // Change order because in checkMoves passes x,y coordinates
-      // but board in rows,cols coordinates
-      // (may change it later)
-
-      println("Enter coordinates(row, column) of move: ")
-      val moveArray = StdIn.readLine().split(" ")
-      val move = (moveArray(1).toInt, moveArray(0).toInt)
-
-      (pos, move)
-    }
-
-    val (pos, move) = getInputFromPlayer
-    val chosenFigNum = board(pos._1)(pos._2)
-    val chosenFigName = player.figures(chosenFigNum)._1
-
-
-    def checkIfMoveValid: Boolean = {
-      // Function checks if move is valid for the fig
-      // and no other figures on the way
-
-      val moveValid = if (chosenFigName == "Pawn") fPawn(pos, move, player.color) else checkMoves(chosenFigName)(pos, move)
-
-      // checks if player selected figure of his color
-      val rightSide = (player.color == -1 && chosenFigNum < 0) || (player.color == 1 && chosenFigNum > 0)
-
-      var noObstacles = true
-
-      // for Knight there are always no obstacles
-      if (chosenFigName != "Knight") {
-        (pos._1 + 1 until move._1).foreach(
-          col => (pos._2 + 1 until move._2).foreach(
-            row => {if (board(row)(col) != 0) noObstacles = false}))}
-
-      // adds condition if move position is not occupied by figure of the same color
-      noObstacles = noObstacles && (board(move._2)(move._1) != player.color)
-
-      moveValid && noObstacles && rightSide
-    }
-
-    def checkIfEnemyFigDefeated: Boolean = board(move._2)(move._1) == player.color * -1
-
-    if (checkIfMoveValid) {
-      // check if enemy fig defeated, move fig to new position, remove it from the previous one
-      if (checkIfEnemyFigDefeated) player.figures -= chosenFigNum
-      board(move._2)(move._1) = chosenFigNum
-      board(pos._2)(pos._1) = 0
-      move
-    }
-    else {
-      println("Chosen move is invalid, please make another one.")
-      makeMove(player, board)
-    }
+  def makeMove(player: Player, board: Array[Array[Int]]) = {
+    // TODO Write new function accordingly to use new AvailableMoves functions
   }
 
   def checkEnd(player: Player, board: Array[Array[Int]], lastMovedPos: (Int, Int)) = {
-    def isCheck(pos: (Int, Int)): Boolean = {
+    // FIXME Complete this function
+    //  Write function to check if it's a check
+    //  Write function to check if all available moves for kings are checks
     }
 
   }
