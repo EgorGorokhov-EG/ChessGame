@@ -1,3 +1,4 @@
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.io.StdIn
@@ -22,7 +23,7 @@ class Player(var color: Int) {
 
   var availableMoves: mutable.Map[Int, ListBuffer[(Int, Int)]] = mutable.Map[Int, ListBuffer[(Int, Int)]]()
 
-  def updateAvailableMoves(board: Array[Array[Int]]) = {
+  def updateAvailableMoves(board: Array[Array[Int]]): Unit = {
 
     // Check fig positions for several cases:
     //
@@ -54,7 +55,7 @@ class Player(var color: Int) {
       val positions = new ListBuffer[(Int, Int)]()
 
       // Scan vertically to detect obstacles
-      def scanOnRows() = {
+      def scanOnRows(): Unit = {
         // Need to check both sides of current pos:
         // towards 0 and towards 7
         Array(0, 7).foreach(endPoint => {
@@ -70,7 +71,7 @@ class Player(var color: Int) {
       }
 
       // Scan horizontally
-      def scanOnCols() = {
+      def scanOnCols(): Unit = {
         // Doing the same as scanOnRows but row is constant
         Array(0, 7).foreach(endPoint => {
           val order = if (endPoint == 0) -1 else 1
@@ -90,7 +91,7 @@ class Player(var color: Int) {
     def fBishop(pos: (Int, Int)) = {
       val positions = new ListBuffer[(Int, Int)]()
 
-      def scanDiag1() = {
+      def scanDiag1(): Unit = {
         Array(0, 7).foreach(endPoint => {
           val order = if (endPoint == 0) -1 else 1
           var row = pos._1
@@ -104,7 +105,7 @@ class Player(var color: Int) {
           }})
       }
 
-      def scanDiag2() = {
+      def scanDiag2(): Unit = {
         Array((0, 7), (7, 0)).foreach(endPoints =>{
           val order = if (endPoints._1 == 0) -1 else 1
           var row = pos._1
@@ -175,7 +176,7 @@ class Player(var color: Int) {
       "Pawn" -> fPawn
     )
 
-    for (figure <- figures) yield {
+    for (figure <- figures) {
       val figNum = figure._1
       val figName = figure._2._1
       val figPos = figure._2._2
@@ -185,7 +186,6 @@ class Player(var color: Int) {
 }
 
 class GameHost {
-
   // Board represented as a 2d array, white figs down, black up.
   // 1 = white, -1 = black
   def initBoard(players: Array[Player]): Array[Array[Int]] = {
@@ -206,27 +206,32 @@ class GameHost {
   }
 
   def makeMove(player: Player, board: Array[Array[Int]]): Unit = {
-    // TODO Write new function accordingly to use new AvailableMoves functions
 
+    @tailrec
     def getPosition(): Array[Int] = {
-      println("Please enter coordinates(row, column) of figure to move: ")
+      println("Please enter position(row, column) of a figure to move: ")
       val posArray = StdIn.readLine().split(" ").map(element => element.toInt)
 
       if ((0 to 7).contains(posArray(0)) && (0 to 7).contains(posArray(1))) posArray
-      else {println("Coordinates are incorrect!"); getPosition()}
+      else {println("Position is invalid!"); getPosition()}
     }
 
+    displayBoard(board)
     val figPos = getPosition()  // returns Array(row, col)
     val figNum = board(figPos(0))(figPos(1))
 
+    // check if chosen figure is your color
     if (Math.signum(figNum) == player.color) {
       val moves = player.availableMoves(figNum)
+
+      // print all available moves for figure with index to each
       println("Available moves:")
       moves.foreach(move => println(moves.indexOf(move).toString + " " + move.toString()))
 
       println("Select move: ")
       val selectedMoveIndex = StdIn.readLine().toInt
 
+      // if input is -1 choose figure again
       if (selectedMoveIndex == -1) makeMove(player, board)
       else {
         val movePositions = moves(selectedMoveIndex)
@@ -237,29 +242,46 @@ class GameHost {
     else {println("Selected figure is not your color"); makeMove(player, board)}
   }
 
-  def checkEnd(player: Player, board: Array[Array[Int]], lastMovedPos: (Int, Int)) = {
-    // FIXME Complete this function
-    //  Write function to check if it's a check
-    //  Write function to check if all available moves for kings are checks
+  def checkEnd(players: Map[Int, Player]): Int = {
+    // return a color of a winner if checkmate or 0 otherwise
 
-    def isCheck(defender: Player, attacker: Player) = {
-      val kingPos = defender.figures(defender.color)._2
+    def isCheck(kingPos: (Int, Int), attacker: Player) = {
       val attackerPossibleMoves = attacker.availableMoves
-
       if (attackerPossibleMoves.values.exists(list => list.contains(kingPos))) true
       else false
     }
+
+    def isCheckmate(defender: Player, attacker: Player) = {
+      val allPossibleKingMoves = defender.availableMoves(defender.color)
+      allPossibleKingMoves.forall(pos => isCheck(pos, attacker))
+    }
+
+    if (isCheckmate(players(1), players(-1))) -1
+    else if (isCheckmate(players(-1), players(1))) 1
+    else 0
   }
 
+  def initGame(): (Player, Player, Array[Array[Int]]) = {
+    val playerBlack = new Player(1)
+    val playerWhite = new Player(-1)
+    val board = initBoard(Array(playerWhite, playerBlack))
+
+    (playerBlack, playerWhite, board)
+  }
 }
 
 object Game extends App {
-  val player1 = new Player(-1)
-  val player2 = new Player(1)
-  val gameHost = new GameHost
-  val board = gameHost.initBoard(Array(player1, player2))
-  player1.updateAvailableMoves(board)
-  gameHost.displayBoard(board)
-  gameHost.makeMove(player1, board)
-  gameHost.displayBoard(board)
+  // TODO Test this part, refactor it, and add other features
+  val gameHost = new GameHost()
+  val (playerBlack, playerWhite, board) = gameHost.initGame()
+  val players = Map(1 -> playerWhite, -1 -> playerBlack)
+
+  var isEnd = 0
+  var currentPlayer = 1  // first turn is white's turn
+
+  while (isEnd == 0) {
+    gameHost.makeMove(players(currentPlayer), board)
+    isEnd = gameHost.checkEnd(players)
+    currentPlayer *= -1
+  }
 }
