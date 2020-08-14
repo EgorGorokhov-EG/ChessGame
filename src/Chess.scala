@@ -6,23 +6,23 @@ class Player(var color: Int) {
   // -1 = white, 1 = black
   require(color == -1 || color == 1)
 
-  private val initialRowPos = if (color == -1) 0 else 7
+  private val initialRowPos = if (color == 1) 0 else 7
 
   // Number of fig -> Name, Position
   val figures: mutable.Map[Int, (String, (Int, Int))] = mutable.Map(
-    1 -> ("King", (initialRowPos, 3)),
-    2 -> ("Queen", (initialRowPos, 4)),
-    3 -> ("Rook", (initialRowPos, 0)),
-    4 -> ("Rook", (initialRowPos, 7)),
-    5 -> ("Knight", (initialRowPos, 1)),
-    6 -> ("Knight", (initialRowPos, 6)),
-    7 -> ("Bishop", (initialRowPos, 2)),
-    8 -> ("Bishop", (initialRowPos, 5))
-  ) ++ (for (i <- 0 to 7) yield (i + 9, ("Pawn", (initialRowPos + color, i)))).toMap
+    1*color -> ("King", (initialRowPos, 3)),
+    2*color -> ("Queen", (initialRowPos, 4)),
+    3*color -> ("Rook", (initialRowPos, 0)),
+    4*color -> ("Rook", (initialRowPos, 7)),
+    5*color -> ("Knight", (initialRowPos, 1)),
+    6*color-> ("Knight", (initialRowPos, 6)),
+    7*color -> ("Bishop", (initialRowPos, 2)),
+    8*color -> ("Bishop", (initialRowPos, 5))
+  ) ++ (for (i <- 0 to 7) yield ((i + 9)*color, ("Pawn", (initialRowPos + color, i)))).toMap
 
-  val availableMoves: mutable.Map[Int, List[(Int, Int)]] = mutable.Map()
+  var availableMoves: mutable.Map[Int, ListBuffer[(Int, Int)]] = mutable.Map[Int, ListBuffer[(Int, Int)]]()
 
-  def getAvailableMoves(figNum: Int, board: Array[Array[Int]], forAll: Boolean = true) = {
+  def updateAvailableMoves(board: Array[Array[Int]]) = {
 
     // Check fig positions for several cases:
     //
@@ -34,17 +34,19 @@ class Player(var color: Int) {
       val currentFig = board(currentPos._1)(currentPos._2)
       val nextFig = board(nextPos._1)(nextPos._2)
       (currentFig == 0 || Math.signum(currentFig) == color) && (nextFig == 0 || Math.signum(nextFig) == -color)
-
     }
 
     def fKing(pos: (Int, Int)) = {
       val positions = new ListBuffer[(Int, Int)]()
-      val rowBounds = Array(pos._1 - 1, pos._1 + 1)
-      rowBounds.foreach(row => {
-        if (board(2)(row) == 0 || Math.signum(board(2)(row)) == -color) positions += Tuple2(2, row)
-        for (col <- pos._2 - 1 to pos._2 + 1) if (board(row)(col) == 0 || Math.signum(board(row)(col)) == -color)
-          positions += Tuple2(row, col)
+      val rows = (pos._1 - 1 to pos._1 + 1).toArray.filter(coordinate => (0 to 7).contains(coordinate))
+      val cols = (pos._2 - 1 to pos._2 + 1).toArray.filter(coordinate => (0 to 7).contains(coordinate))
+
+      rows.foreach(row => {
+        cols.foreach(col => {
+          if (board(row)(col) == 0) positions += Tuple2(row, col)
+        })
       })
+
       positions
     }
 
@@ -173,19 +175,16 @@ class Player(var color: Int) {
       "Pawn" -> fPawn
     )
 
-    if (forAll) {
-      (for (figure <- figures) yield {
-        val figNum = figure._1
-        val figName = figure._2._1
-        val figPos = figure._2._2
-        (figNum, applyFunction(figName)(figPos))
-      }).to(mutable.Map)
+    for (figure <- figures) yield {
+      val figNum = figure._1
+      val figName = figure._2._1
+      val figPos = figure._2._2
+      availableMoves.update(figNum, applyFunction(figName)(figPos))
     }
-    else applyFunction(figures(figNum))
   }
 }
 
-class Game {
+class GameHost {
 
   // Board represented as a 2d array, white figs down, black up.
   // 1 = white, -1 = black
@@ -202,16 +201,65 @@ class Game {
     board
   }
 
-  def makeMove(player: Player, board: Array[Array[Int]]) = {
+  def displayBoard(board: Array[Array[Int]]) = {
+    board.foreach(line => println(line.mkString(" ")))
+  }
+
+  def makeMove(player: Player, board: Array[Array[Int]]): Unit = {
     // TODO Write new function accordingly to use new AvailableMoves functions
+
+    def getPosition(): Array[Int] = {
+      println("Please enter coordinates(row, column) of figure to move: ")
+      val posArray = StdIn.readLine().split(" ").map(element => element.toInt)
+
+      if ((0 to 7).contains(posArray(0)) && (0 to 7).contains(posArray(1))) posArray
+      else {println("Coordinates are incorrect!"); getPosition()}
+    }
+
+    val figPos = getPosition()  // returns Array(row, col)
+    val figNum = board(figPos(0))(figPos(1))
+
+    if (Math.signum(figNum) == player.color) {
+      val moves = player.availableMoves(figNum)
+      println("Available moves:")
+      moves.foreach(move => println(moves.indexOf(move).toString + " " + move.toString()))
+
+      println("Select move: ")
+      val selectedMoveIndex = StdIn.readLine().toInt
+
+      if (selectedMoveIndex == -1) makeMove(player, board)
+      else {
+        val movePositions = moves(selectedMoveIndex)
+        board(movePositions._1)(movePositions._2) = figNum
+        board(figPos(0))(figPos(1)) = 0
+      }
+    }
+    else {println("Selected figure is not your color"); makeMove(player, board)}
   }
 
   def checkEnd(player: Player, board: Array[Array[Int]], lastMovedPos: (Int, Int)) = {
     // FIXME Complete this function
     //  Write function to check if it's a check
     //  Write function to check if all available moves for kings are checks
-    }
 
+    def isCheck(defender: Player, attacker: Player) = {
+      val kingPos = defender.figures(defender.color)._2
+      val attackerPossibleMoves = attacker.availableMoves
+
+      if (attackerPossibleMoves.values.exists(list => list.contains(kingPos))) true
+      else false
+    }
   }
 
+}
+
+object Game extends App {
+  val player1 = new Player(-1)
+  val player2 = new Player(1)
+  val gameHost = new GameHost
+  val board = gameHost.initBoard(Array(player1, player2))
+  player1.updateAvailableMoves(board)
+  gameHost.displayBoard(board)
+  gameHost.makeMove(player1, board)
+  gameHost.displayBoard(board)
 }
