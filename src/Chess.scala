@@ -16,12 +16,15 @@ class Player(var color: Int) {
     3*color -> ("Rook", (initialRowPos, 0)),
     4*color -> ("Rook", (initialRowPos, 7)),
     5*color -> ("Knight", (initialRowPos, 1)),
-    6*color-> ("Knight", (initialRowPos, 6)),
+    6*color -> ("Knight", (initialRowPos, 6)),
     7*color -> ("Bishop", (initialRowPos, 2)),
     8*color -> ("Bishop", (initialRowPos, 5))
-  ) ++ (for (i <- 0 to 7) yield ((i + 9)*color, ("Pawn", (initialRowPos + color, i)))).toMap
+  ) ++ (for (i <- 0 to 7)
+    yield (
+      (i + 9)*color, ("Pawn", (initialRowPos + color, i))
+    )).toMap
 
-  var availableMoves: mutable.Map[Int, ListBuffer[(Int, Int)]] = mutable.Map[Int, ListBuffer[(Int, Int)]]()
+  var availableMoves = mutable.Map[Int, ListBuffer[(Int, Int)]]()
 
   def updateAvailableMoves(board: Array[Array[Int]]): Unit = {
 
@@ -34,7 +37,8 @@ class Player(var color: Int) {
     val noObstacle = (currentPos: (Int, Int), nextPos: (Int, Int)) => {
       val currentFig = board(currentPos._1)(currentPos._2)
       val nextFig = board(nextPos._1)(nextPos._2)
-      (currentFig == 0 || Math.signum(currentFig) == color) && (nextFig == 0 || Math.signum(nextFig) == -color)
+      (currentFig == 0 || Math.signum(currentFig) == color) &&
+        (nextFig == 0 || Math.signum(nextFig) == -color)
     }
 
     def fKing(pos: (Int, Int)) = {
@@ -98,7 +102,10 @@ class Player(var color: Int) {
           var col = pos._2
 
           // First check if we are still on board and then if no obstacles in the next position
-          while ((row * order < endPoint) && (col * order < endPoint) && noObstacle((row, col), (row + order, col + order))) {
+          while ((row * order < endPoint) &&
+                (col * order < endPoint) &&
+                noObstacle((row, col), (row + order, col + order))) {
+
             row += order
             col += order
             positions += Tuple2(row, col)
@@ -111,7 +118,10 @@ class Player(var color: Int) {
           var row = pos._1
           var col = pos._2
 
-          while ((row*order < endPoints._1) && (col*(-1)*order < endPoints._2) && noObstacle((row, col), (row + order, col - order))) {
+          while ((row*order < endPoints._1) &&
+                (col*(-1)*order < endPoints._2) &&
+                noObstacle((row, col), (row + order, col - order))) {
+
             row += order
             col -= order
             positions += Tuple2(row, col)
@@ -202,7 +212,34 @@ class GameHost {
   }
 
   def displayBoard(board: Array[Array[Int]]) = {
-    board.foreach(line => println(line.mkString(" ")))
+
+    def letterFromNum(figNum: Int) =
+      figNum match {
+        case 0 => " "
+        case 1 => "K"
+        case -1 => "k"
+        case 2 => "Q"
+        case -2 => "q"
+        case 3 | 4 => "R"
+        case -3 | -4 => "r"
+        case 5 | 6 => "N"
+        case -5 | -6 => "n"
+        case 7 | 8 => "B"
+        case -7 | -8 => "b"
+        case _ if figNum > 8 => "P"
+        case _ if figNum < 8 => "p"
+      }
+
+    val separator = "+---+---+---+---+---+---+---+---+"
+
+    println(separator)
+    for (row <- 0 to 7) {
+      val line = (for (col <- 0 to 7) yield {
+        " %s ".format(letterFromNum(board(row)(col)))
+      }).mkString("|")
+      println("|" + line + "|")
+      println(separator)
+    }
   }
 
   def makeMove(player: Player, board: Array[Array[Int]]): Unit = {
