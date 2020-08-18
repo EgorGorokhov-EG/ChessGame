@@ -234,14 +234,16 @@ class GameHost {
       }
     }
 
-    val separator = "+---+---+---+---+---+---+---+---+"
+    val separator = "  +---+---+---+---+---+---+---+---+"
+    val numbers = "    " + (0 to 7).toArray.mkString("   ")
 
+    println(numbers)
     println(separator)
     for (row <- 0 to 7) {
       val line = (for (col <- 0 to 7) yield {
         " %s ".format(letterFromNum(board(row)(col)))
       }).mkString("|")
-      println("|" + line + "|")
+      println("%S |".format(row.toString) + line + "|")
       println(separator)
     }
   }
@@ -264,12 +266,11 @@ class GameHost {
     displayBoard(board)
     val figPos = getPosition()  // returns Array(row, col)
     val figNum = board(figPos(0))(figPos(1))
+    val figName = player.figures(figNum)._1
 
     // check if chosen figure is your color
     if (Math.signum(figNum) == player.color) {
       val moves = player.availableMoves(figNum)
-      println(figNum)
-      println(player.availableMoves(figNum))
 
       // print all available moves for figure with index to each
       println("Available moves:")
@@ -284,6 +285,7 @@ class GameHost {
         val movePositions = moves(selectedMoveIndex)
         board(movePositions._1)(movePositions._2) = figNum
         board(figPos(0))(figPos(1)) = 0
+        player.figures.update(figNum, (figName, movePositions))
       }
     }
     else {println("Selected figure is not your color"); makeMove(player, board)}
@@ -319,7 +321,6 @@ class GameHost {
 }
 
 object Game extends App {
-  // TODO Fix checkEnd function
   val gameHost = new GameHost()
   val (playerBlack, playerWhite, board) = gameHost.initGame()
   val players = Map(-1 -> playerWhite, 1 -> playerBlack)
