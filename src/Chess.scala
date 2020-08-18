@@ -24,7 +24,7 @@ class Player(var color: Int) {
       (i + 9)*color, ("Pawn", (initialRowPos + color, i))
     )).toMap
 
-  var availableMoves = mutable.Map[Int, ListBuffer[(Int, Int)]]()
+  var availableMoves: mutable.Map[Int, ListBuffer[(Int, Int)]] = mutable.Map[Int, ListBuffer[(Int, Int)]]()
 
   def updateAvailableMoves(board: Array[Array[Int]]): Unit = {
 
@@ -43,15 +43,14 @@ class Player(var color: Int) {
 
     def fKing(pos: (Int, Int)) = {
       val positions = new ListBuffer[(Int, Int)]()
-      val rows = (pos._1 - 1 to pos._1 + 1).toArray.filter(coordinate => (0 to 7).contains(coordinate))
-      val cols = (pos._2 - 1 to pos._2 + 1).toArray.filter(coordinate => (0 to 7).contains(coordinate))
+      val rows = (pos._1 - 1 to pos._1 + 1).toArray.filter((0 to 7).contains(_))
+      val cols = (pos._2 - 1 to pos._2 + 1).toArray.filter((0 to 7).contains(_))
 
       rows.foreach(row => {
         cols.foreach(col => {
           if (board(row)(col) == 0) positions += Tuple2(row, col)
         })
       })
-
       positions
     }
 
@@ -148,10 +147,10 @@ class Player(var color: Int) {
         positions += Tuple2(pos._1 + 1*signs._1, pos._2 + 2*signs._2)
       })
 
-      val checkIfOnBoard = (pos: (Int, Int)) => (0 to 7).contains(pos._1) && (0 to 7).contains(pos._2)
-      val checkIfObstacle = (pos: (Int, Int)) => Math.signum(board(pos._1)(pos._2)) != color
+      def checkIfOnBoard(pos: (Int, Int)): Boolean = (0 to 7).contains(pos._1) && (0 to 7).contains(pos._2)
+      def checkIfObstacle(pos: (Int, Int)): Boolean = Math.signum(board(pos._1)(pos._2)) != color
 
-      positions.filter(pos => checkIfOnBoard(pos) && checkIfObstacle(pos))
+      positions.filterInPlace(pos => (checkIfOnBoard(pos) && checkIfObstacle(pos)))
     }
 
     def fPawn(pos: (Int, Int)) = {
@@ -197,11 +196,12 @@ class Player(var color: Int) {
 
 class GameHost {
   // Board represented as a 2d array, white figs down, black up.
-  // 1 = white, -1 = black
+  // -1 = white, 1 = black
   def initBoard(players: Array[Player]): Array[Array[Int]] = {
     val board = Array.ofDim[Int](8, 8)
 
     for (player <- players) {
+
       player.figures.foreach(pair => {
         val pos = pair._2._2
         val numFig = pair._1
@@ -211,9 +211,12 @@ class GameHost {
     board
   }
 
-  def displayBoard(board: Array[Array[Int]]) = {
+  def displayBoard(board: Array[Array[Int]]): Unit = {
 
-    def letterFromNum(figNum: Int) =
+    def letterFromNum(figNum: Int) = {
+
+      // Match numbers of figures to their letters
+      // uppercase is black side, lowercase is white
       figNum match {
         case 0 => " "
         case 1 => "K"
@@ -229,6 +232,7 @@ class GameHost {
         case _ if figNum > 8 => "P"
         case _ if figNum < 8 => "p"
       }
+    }
 
     val separator = "+---+---+---+---+---+---+---+---+"
 
@@ -240,6 +244,10 @@ class GameHost {
       println("|" + line + "|")
       println(separator)
     }
+  }
+
+  def updateAllAvailableMoves(players: Map[Int, Player], board: Array[Array[Int]]): Unit = {
+    for (player <- players.values) player.updateAvailableMoves(board)
   }
 
   def makeMove(player: Player, board: Array[Array[Int]]): Unit = {
@@ -260,6 +268,8 @@ class GameHost {
     // check if chosen figure is your color
     if (Math.signum(figNum) == player.color) {
       val moves = player.availableMoves(figNum)
+      println(figNum)
+      println(player.availableMoves(figNum))
 
       // print all available moves for figure with index to each
       println("Available moves:")
@@ -290,7 +300,8 @@ class GameHost {
 
     def isCheckmate(defender: Player, attacker: Player) = {
       val allPossibleKingMoves = defender.availableMoves(defender.color)
-      allPossibleKingMoves.forall(pos => isCheck(pos, attacker))
+      val currentKingPos = defender.figures(defender.color)._2
+      (allPossibleKingMoves :+ currentKingPos).forall(pos => isCheck(pos, attacker))
     }
 
     if (isCheckmate(players(1), players(-1))) -1
@@ -308,16 +319,18 @@ class GameHost {
 }
 
 object Game extends App {
-  // TODO Test this part, refactor it, and add other features
+  // TODO Fix checkEnd function
   val gameHost = new GameHost()
   val (playerBlack, playerWhite, board) = gameHost.initGame()
-  val players = Map(1 -> playerWhite, -1 -> playerBlack)
+  val players = Map(-1 -> playerWhite, 1 -> playerBlack)
 
   var isEnd = 0
-  var currentPlayer = 1  // first turn is white's turn
+  var currentPlayer = -1  // first turn is white's turn
+  gameHost.updateAllAvailableMoves(players, board)
 
   while (isEnd == 0) {
     gameHost.makeMove(players(currentPlayer), board)
+    gameHost.updateAllAvailableMoves(players, board)
     isEnd = gameHost.checkEnd(players)
     currentPlayer *= -1
   }
