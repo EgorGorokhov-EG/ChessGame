@@ -252,7 +252,9 @@ class GameHost {
     for (player <- players.values) player.updateAvailableMoves(board)
   }
 
-  def makeMove(player: Player, board: Array[Array[Int]]): Unit = {
+  def makeMove(players: Map[Int, Player], currentPlayer: Int, board: Array[Array[Int]]): Unit = {
+    val player = players(currentPlayer)
+    val otherPlayer = players(currentPlayer * -1)
 
     @tailrec
     def getPosition(): Array[Int] = {
@@ -265,7 +267,7 @@ class GameHost {
 
     displayBoard(board)
     val figPos = getPosition()  // returns Array(row, col)
-    val figNum = board(figPos(0))(figPos(1))
+    val figNum = board(figPos(0))(figPos(1))  // number of chosen piece
     val figName = player.figures(figNum)._1
 
     // check if chosen figure is your color
@@ -275,20 +277,28 @@ class GameHost {
       // print all available moves for figure with index to each
       println("Available moves:")
       moves.foreach(move => println(moves.indexOf(move).toString + " " + move.toString()))
-
       println("Select move: ")
       val selectedMoveIndex = StdIn.readLine().toInt
 
       // if input is -1 choose figure again
-      if (selectedMoveIndex == -1) makeMove(player, board)
+      if (selectedMoveIndex == -1) makeMove(players, currentPlayer, board)
+      // else make move
       else {
         val movePositions = moves(selectedMoveIndex)
+        val pieceOnPosition = board(movePositions._1)(movePositions._2)
+
+        // If position occupied by piece of other player -> capture it
+        if (pieceOnPosition != 0) otherPlayer.figures.remove(pieceOnPosition)
+
+        // Move current player's piece on the board
         board(movePositions._1)(movePositions._2) = figNum
         board(figPos(0))(figPos(1)) = 0
+
+        // Update it's position in figures
         player.figures.update(figNum, (figName, movePositions))
       }
     }
-    else {println("Selected figure is not your color"); makeMove(player, board)}
+    else {println("Selected figure is not your color"); makeMove(players, currentPlayer, board)}
   }
 
   def checkEnd(players: Map[Int, Player]): Int = {
@@ -330,7 +340,7 @@ object Game extends App {
   gameHost.updateAllAvailableMoves(players, board)
 
   while (isEnd == 0) {
-    gameHost.makeMove(players(currentPlayer), board)
+    gameHost.makeMove(players, currentPlayer, board)
     gameHost.updateAllAvailableMoves(players, board)
     isEnd = gameHost.checkEnd(players)
     currentPlayer *= -1
