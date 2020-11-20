@@ -1,5 +1,5 @@
 # ChessGame
-Simple chess game made for learning basics of Scala. WIP
+Simple chess game made for learning basics of Scala. WIP, definitely bugs possible
 
 ## Board and figures
 For now board looks like this:
